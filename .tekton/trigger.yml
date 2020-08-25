@@ -1,0 +1,30 @@
+apiVersion: tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: binding-github-push
+spec:
+  params:
+    - name: URL
+      value: "$(event.repository.url)"
+
+---
+
+apiVersion: tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: template-github-push
+spec:
+  params:
+    - name: URL
+      description: The repository url to build and deploy.
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        name: pipelinerun-$(uid)-pvc
+      spec:
+        pipelineRef:
+          name: github-push-pipeline
+        params:
+          - name: URL
+            value: $(params.URL)

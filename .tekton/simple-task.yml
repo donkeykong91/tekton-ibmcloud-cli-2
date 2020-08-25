@@ -1,0 +1,14 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: the-task
+spec:
+  params: 
+    - name: URL
+      description: URL of the git clone link.
+  steps:
+    - name: simple-task
+      image: ibmcom/pipeline-base-image
+      command: ["/bin/bash", "-c"]
+      args:
+        - echo "$(params.URL)"

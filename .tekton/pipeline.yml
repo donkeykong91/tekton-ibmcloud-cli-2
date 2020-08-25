@@ -1,0 +1,16 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: github-push-pipeline
+spec:
+  params:
+    - name: URL
+      description: URL of the repository to be cloned.
+      default: ""
+  tasks: 
+    - name: github-push-task
+      taskRef:
+        name: the-task
+      params:
+        - name: URL
+          value: $(params.URL)
