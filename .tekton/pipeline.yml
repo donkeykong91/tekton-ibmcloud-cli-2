@@ -1,16 +1,112 @@
 apiVersion: tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: github-push
+spec:
+  triggers:
+    - binding:
+        name: binding-push-ibm-container-registry
+      template:
+        name: template-push-ibm-container-registry
+
+---
+
+apiVersion: tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: binding-push-ibm-container-registry
+
+---
+
+apiVersion: tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: template-push-ibm-container-registry
+spec:
+  params:
+    - name: URL
+      description: The repository url to build and deploy.
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        name: pipelinerun-$(uid)-pvc
+      spec:
+        pipelineRef:
+          name: github-push-pipeline
+        params:
+          - name: URL
+            value: $(params.URL)
+        workspaces:
+          - name: pipeline-workspace
+            persistentVolumeClaim:
+              claimName: pipelinerun-$(uid)-pvc
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pipelinerun-$(uid)-pvc
+spec:
+  resources:
+    requests:
+      storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+
+---
+
+apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
   name: github-push-pipeline
 spec:
+  workspaces:
+    - name: pipeline-workspace
   params:
-    - name: URL
-      description: URL of the repository to be cloned.
-      default: ""
-  tasks: 
-    - name: github-push-task
-      taskRef:
-        name: the-task
+    - name: repository
+      description: Url of the repository to be cloned.
+      default: "https://github.com/donkeykong91/tekton-ibmcloud-cli-2"
+  tasks: clone
+    - name: 
+      workspaces:
+        - name: artifacts
+          workspace: pipeline-workspace
       params:
-        - name: URL
+        - name: repository
           value: $(params.URL)
+      taskRef:
+        name: src-clone
+
+---
+
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: src-clone
+spec:
+  workspaces:
+  - name: artifacts 
+  params:
+  - name: repository
+    description: the git repo url
+  - name: branch
+    description: the git branch
+    default: master
+  steps:
+    - name: clone
+      image: ibmcom/pipeline-base-image
+      command: ["/bin/bash", "-c"]
+      args:
+        - |
+          set -x
+          echo 00 version
+          WS=$(workspaces.artifacts.path)
+          REPOSITORY=$(params.repository)
+          BRANCH=$(params.branch)
+          cd $WS
+          git --version
+          git clone --single-branch --branch $BRANCH $REPOSITORY
+          ls $WS
